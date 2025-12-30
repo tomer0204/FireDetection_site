@@ -1,5 +1,5 @@
 from datetime import datetime
-from backend.app import db
+from app import db
 
 class TimestampedModel(db.Model):
     __abstract__ = True
