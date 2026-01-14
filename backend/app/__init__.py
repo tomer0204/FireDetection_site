@@ -13,7 +13,8 @@ def create_app():
 
     db.init_app(app)
     migrate.init_app(app, db)
-
+    from app.route.user_routes import user_bp
+    app.register_blueprint(user_bp, url_prefix="/api/users")
     return app
 
 from app.model.user import User
