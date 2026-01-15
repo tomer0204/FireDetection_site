@@ -1,4 +1,4 @@
-from app import db
+from app.extensions import db
 from .timestamps import TimestampedModel
 
 class Detection(TimestampedModel):
@@ -8,13 +8,13 @@ class Detection(TimestampedModel):
 
     camera_id = db.Column(
         db.Integer,
-        db.ForeignKey("cameras.camera_id"),
+        db.ForeignKey("cameras.camera_id", ondelete="CASCADE"),
         nullable=False
     )
 
     track_id = db.Column(
         db.Integer,
-        db.ForeignKey("tracks.track_id"),
+        db.ForeignKey("tracks.track_id", ondelete="CASCADE"),
         nullable=False
     )
 

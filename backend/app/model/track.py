@@ -1,4 +1,4 @@
-from app import db
+from app.extensions import db
 from .timestamps import TimestampedModel
 
 class Track(TimestampedModel):
@@ -8,8 +8,13 @@ class Track(TimestampedModel):
 
     camera_id = db.Column(
         db.Integer,
-        db.ForeignKey("cameras.camera_id"),
+        db.ForeignKey("cameras.camera_id", ondelete="CASCADE"),
         nullable=False
     )
 
-    detections = db.relationship("Detection", backref="track", lazy=True)
+    detections = db.relationship(
+        "Detection",
+        backref="track",
+        cascade="all, delete-orphan",
+        lazy=True
+    )
