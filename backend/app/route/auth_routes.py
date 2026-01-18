@@ -4,53 +4,68 @@ from flask_jwt_extended import (
     set_refresh_cookies,
     unset_jwt_cookies,
     jwt_required,
-    get_jwt_identity,
+    get_jwt_identity
 )
-from app.controller.auth_controller import register, login
-from app.extensions import limiter
-from app.service.auth_service import get_user_by_id
+from app.controller.auth_controller import login, register
+from app.model.user import User
 
 auth_bp = Blueprint("auth", __name__)
 
 @auth_bp.route("/register", methods=["POST"])
-@limiter.limit("5/minute")
 def register_route():
-    user = register(request.get_json(force=True))
-    return jsonify({"user_id": user.user_id, "email": user.email, "role": user.role}), 201
+    user = register(request.json or {})
+    return jsonify({
+        "user": {
+            "id": user.user_id,
+            "email": user.email,
+            "username": user.username,
+            "role": user.role.value,
+            "created_at": user.created_at.isoformat(),
+            "updated_at": user.updated_at.isoformat()
+        }
+    }), 201
 
 @auth_bp.route("/login", methods=["POST"])
-@limiter.limit("10/minute")
 def login_route():
-    user, access_token, refresh_token = login(request.get_json(force=True))
-    resp = jsonify({"message": "ok", "user_id": user.user_id, "email": user.email, "role": user.role})
-    set_access_cookies(resp, access_token)
-    set_refresh_cookies(resp, refresh_token)
-    return resp, 200
+    user, access_token, refresh_token = login(request.json or {})
 
-@auth_bp.route("/logout", methods=["POST"])
-def logout_route():
-    resp = jsonify({"message": "ok"})
-    unset_jwt_cookies(resp)
-    return resp, 200
+    response = jsonify({
+        "user": {
+            "id": user.user_id,
+            "email": user.email,
+            "username": user.username,
+            "role": user.role.value,
+            "created_at": user.created_at.isoformat(),
+            "updated_at": user.updated_at.isoformat()
+        }
+    })
 
-@auth_bp.route("/refresh", methods=["POST"])
-@jwt_required(refresh=True)
-def refresh_route():
-    user_id = get_jwt_identity()
-    user = get_user_by_id(user_id)
-    if not user or not user.is_active:
-        return jsonify({"error": "UNAUTHORIZED", "message": "Unauthorized"}), 401
-    from flask_jwt_extended import create_access_token
-    access_token = create_access_token(identity=user.user_id, additional_claims={"role": user.role})
-    resp = jsonify({"message": "ok"})
-    set_access_cookies(resp, access_token)
-    return resp, 200
+    set_access_cookies(response, access_token)
+    set_refresh_cookies(response, refresh_token)
+    return response, 200
 
 @auth_bp.route("/me", methods=["GET"])
 @jwt_required()
 def me_route():
     user_id = get_jwt_identity()
-    user = get_user_by_id(user_id)
+    user = User.query.get(int(user_id))
+
     if not user:
-        return jsonify({"error": "NOT_FOUND", "message": "User not found"}), 404
-    return jsonify({"user_id": user.user_id, "email": user.email, "role": user.role, "is_active": user.is_active}), 200
+        return jsonify({"error": "UNAUTHORIZED", "message": "User not found"}), 401
+
+    return jsonify({
+        "user": {
+            "id": user.user_id,
+            "email": user.email,
+            "username": user.username,
+            "role": user.role.value,
+            "created_at": user.created_at.isoformat(),
+            "updated_at": user.updated_at.isoformat()
+        }
+    }), 200
+
+@auth_bp.route("/logout", methods=["POST"])
+def logout_route():
+    response = jsonify({"message": "Logged out"})
+    unset_jwt_cookies(response)
+    return response, 200

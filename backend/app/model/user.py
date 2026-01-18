@@ -10,8 +10,11 @@ class User(TimestampedModel):
     __tablename__ = "users"
 
     user_id = db.Column(db.Integer, primary_key=True)
+
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
-    password = db.Column(db.String(255), nullable=False)
+    username = db.Column(db.String(64), unique=True, nullable=False, index=True)
+
+    password_hash = db.Column(db.String(255), nullable=False)
 
     role = db.Column(
         db.Enum(UserRole, name="user_role"),

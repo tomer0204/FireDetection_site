@@ -5,6 +5,7 @@ load_dotenv()
 
 class BaseConfig:
     SECRET_KEY = os.getenv("SECRET_KEY")
+
     SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
@@ -17,7 +18,6 @@ class BaseConfig:
     JWT_COOKIE_CSRF_PROTECT = True
     JWT_ACCESS_CSRF_COOKIE_NAME = "csrf_access_token"
     JWT_REFRESH_CSRF_COOKIE_NAME = "csrf_refresh_token"
-
     JWT_ACCESS_CSRF_HEADER_NAME = "X-CSRF-TOKEN"
     JWT_REFRESH_CSRF_HEADER_NAME = "X-CSRF-TOKEN"
 
