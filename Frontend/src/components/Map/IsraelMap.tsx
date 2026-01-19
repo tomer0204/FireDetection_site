@@ -48,6 +48,11 @@ export default function IsraelMap() {
     [33.5, 36.0]
   ]}
   maxBoundsViscosity={1.0}
+  zoomAnimation={true}
+  zoomAnimationThreshold={4}
+  fadeAnimation={true}
+  inertia={true}
+  inertiaDeceleration={3000}
 >
 
       <TileLayer
@@ -58,8 +63,8 @@ export default function IsraelMap() {
           // @ts-ignore
         data={masked}
         style={{
-          fillColor: "#000000",
-          fillOpacity: 1,
+           fillColor: "black",
+          fillOpacity: 0.6,
           stroke: false
         }}
       />
