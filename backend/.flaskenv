@@ -1,2 +1,2 @@
-FLASK_APP=app:create_app
-FLASK_ENV=development
+FLASK_APP=wsgi:flask_app
+FLASK_DEBUG=1

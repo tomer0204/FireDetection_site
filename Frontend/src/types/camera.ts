@@ -1,6 +1,7 @@
 export interface Camera {
-  camera_id: number;
-  latitude: number;
-  longitude: number;
-  is_active: boolean;
+  camera_id: number
+  name: string
+  lat: number
+  lng: number
+  is_enabled: boolean
 }

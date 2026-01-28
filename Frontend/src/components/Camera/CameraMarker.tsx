@@ -1,18 +1,28 @@
-import { Marker, Popup } from "react-leaflet";
-import { useNavigate } from "react-router-dom";
-import { Camera } from "../../types/camera";
+import { Marker, Popup } from "react-leaflet"
+import { useNavigate } from "react-router-dom"
+import { Camera } from "../../types/camera"
+import L from "leaflet"
+
+const cameraIcon = new L.Icon({
+  iconUrl: "src/assets/camera.png",
+  iconSize: [28, 28],
+  iconAnchor: [14, 28]
+})
 
 export default function CameraMarker({ camera }: { camera: Camera }) {
-  const navigate = useNavigate();
+  const navigate = useNavigate()
 
   return (
-    <Marker position={[camera.latitude, camera.longitude]}>
+    <Marker
+      position={[camera.lat, camera.lng]}
+      icon={cameraIcon}
+      eventHandlers={{
+        click: () => navigate(`/camera/${camera.camera_id}`)
+      }}
+    >
       <Popup>
-        <div>Camera #{camera.camera_id}</div>
-        <button onClick={() => navigate(`/camera/${camera.camera_id}`)}>
-          Open Camera
-        </button>
+        <strong>{camera.name}</strong>
       </Popup>
     </Marker>
-  );
+  )
 }

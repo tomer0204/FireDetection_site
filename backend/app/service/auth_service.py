@@ -25,8 +25,11 @@ def register_user(email: str, username: str, password: str):
 def login_user(username: str, password: str):
     user = User.query.filter_by(username=username).first()
 
-    if not user or not verify_password(password, user.password_hash):
-        raise Unauthorized("Invalid username or password")
+    if not user:
+        raise Unauthorized("Invalid username")
+
+    if not verify_password(password, user.password_hash):
+        raise Unauthorized("Invalid password")
 
     if not user.is_active:
         raise Forbidden("User is inactive")

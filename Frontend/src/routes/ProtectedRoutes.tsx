@@ -16,7 +16,7 @@ export default function ProtectedRoutes({ user, onLogout }: Props) {
 
   return (
     <Routes>
-      <Route element={<MainLayout user={user} onLogoutSuccess={onLogout} />}>
+      <Route element={<MainLayout user={user} onLogoutSuccess={onLogout}  />}>
         <Route path="/" element={<MapPage />} />
         <Route path="/camera/:id" element={<CameraPage />} />
       </Route>
