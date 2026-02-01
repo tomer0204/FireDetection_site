@@ -21,7 +21,7 @@ s3 = boto3.client(
     region_name="us-east-1"
 )
 
-# ---------- Queries ----------
+
 
 def get_stream(stream_id: int):
     return CameraStream.query.get(stream_id)
@@ -80,9 +80,12 @@ def stop_stream(stream_id: int):
     db.session.commit()
     return stream
 
+def get_latest_frame_by_prefix(s3_prefix: str):
+    objs = s3.list_objects_v2(
+        Bucket=BUCKET,
+        Prefix=s3_prefix
+    )
 
-def get_latest_frame_bytes(stream: CameraStream):
-    objs = s3.list_objects_v2(Bucket=BUCKET, Prefix=stream.s3_prefix)
     if "Contents" not in objs or not objs["Contents"]:
         return None
 
@@ -90,13 +93,12 @@ def get_latest_frame_bytes(stream: CameraStream):
     obj = s3.get_object(Bucket=BUCKET, Key=latest["Key"])
     return obj["Body"].read()
 
-def live_frame_generator(stream_id: int, fps: int = 10):
-    while True:
-        stream = get_stream(stream_id)
-        if not stream or not stream.is_active:
-            break
 
-        frame = get_latest_frame_bytes(stream)
+def live_frame_generator(stream: CameraStream, fps: int = 10):
+    s3_prefix = stream.s3_prefix
+
+    while True:
+        frame = get_latest_frame_by_prefix(s3_prefix)
         if frame:
             yield (
                 b"--frame\r\n"
@@ -105,4 +107,4 @@ def live_frame_generator(stream_id: int, fps: int = 10):
                 b"\r\n"
             )
 
-        time.sleep(1 / max(1, fps))
+        time.sleep(1.0 / fps)

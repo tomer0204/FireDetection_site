@@ -23,25 +23,28 @@ export default function CameraPage() {
       const active = streams.find(s => s.is_active)
       if (active) {
         setActiveStream(active)
-        setLiveUrl(`/api/streams/${active.stream_id}/live`)
+        setLiveUrl(`/api/streams/${cameraId}/live`)
       }
     })
   }, [cameraId])
 
   const onStart = async () => {
-    setLoading(true)
-    try {
-      const stream = await createStream({
-        camera_id: cameraId,
-        fps: 10
-      })
+  if (loading || activeStream) return
 
-      setActiveStream(stream)
-      setLiveUrl(`/api/streams/${stream.stream_id}/live`)
-    } finally {
-      setLoading(false)
-    }
+  setLoading(true)
+  try {
+    const stream = await createStream({
+      camera_id: cameraId,
+      fps: 10
+    })
+
+    setActiveStream(stream)
+    setLiveUrl(`/api/streams/${stream.stream_id}/live`)
+  } finally {
+    setLoading(false)
   }
+}
+
 
   const onStop = async () => {
     if (!activeStream) return
@@ -60,7 +63,7 @@ export default function CameraPage() {
     <div style={{ padding: 16 }}>
       <h2>Camera {cameraId}</h2>
 
-      {/* 📷 Camera icon */}
+
       <div style={{ marginBottom: 12 }}>
         <img
           src={cameraImg}
