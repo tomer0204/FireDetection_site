@@ -1,9 +1,10 @@
 from flask import request, jsonify, Response
 from flask_jwt_extended import jwt_required
 from app.service.camera_stream_service import (
-    get_active_stream,
-    start_camera_stream,
-    stop_camera_stream,
+    create_stream,
+    stop_stream,
+    get_stream,
+    get_active_streams_for_camera,
     live_frame_generator
 )
 
@@ -16,37 +17,44 @@ def stream_to_dict(s):
         "source_ref": s.source_ref,
         "fps": s.fps,
         "s3_prefix": s.s3_prefix,
-        "started_at": s.started_at.isoformat() if s.started_at else None,
+        "started_at": s.started_at.isoformat(),
         "ended_at": s.ended_at.isoformat() if s.ended_at else None,
         "is_active": s.is_active
     }
 
-@jwt_required()
-def get_camera_stream_controller(camera_id: int):
-    s = get_active_stream(camera_id)
-    if not s:
-        return jsonify({"is_active": False, "stream": None}), 200
-    return jsonify({"is_active": True, "stream": stream_to_dict(s)}), 200
 
 @jwt_required()
-def start_camera_stream_controller(camera_id: int):
+def create_stream_controller():
     data = request.get_json() or {}
-    fps = int(data.get("fps", 17))
-    source_ref = data.get("source_ref", "minio")
+    camera_id = int(data["camera_id"])
+    fps = int(data.get("fps", 10))
 
-    s = start_camera_stream(camera_id=camera_id, source_ref=source_ref, fps=fps)
-    return jsonify({"stream": stream_to_dict(s)}), 201
+    stream = create_stream(camera_id, fps)
+    return jsonify(stream_to_dict(stream)), 201
 
 @jwt_required()
-def stop_camera_stream_controller(camera_id: int):
-    s = stop_camera_stream(camera_id)
-    if not s:
+def get_stream_controller(stream_id: int):
+    stream = get_stream(stream_id)
+    if not stream:
+        return jsonify({"error": "NOT_FOUND"}), 404
+    return jsonify(stream_to_dict(stream)), 200
+
+@jwt_required()
+def stop_stream_controller(stream_id: int):
+    stream = stop_stream(stream_id)
+    if not stream:
         return jsonify({"error": "NO_ACTIVE_STREAM"}), 400
     return jsonify({"stopped": True}), 200
 
 @jwt_required()
-def camera_live_controller(camera_id: int):
+def live_stream_controller(stream_id: int):
     return Response(
-        live_frame_generator(camera_id),
+        live_frame_generator(stream_id),
         mimetype="multipart/x-mixed-replace; boundary=frame"
     )
+
+
+@jwt_required()
+def list_camera_streams_controller(camera_id: int):
+    streams = get_active_streams_for_camera(camera_id)
+    return jsonify([stream_to_dict(s) for s in streams]), 200

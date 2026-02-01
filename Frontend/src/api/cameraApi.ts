@@ -6,7 +6,11 @@ export const getCameras = async (): Promise<Camera[]> => {
   return res.data
 }
 
-export const createCamera = async (payload: { name: string; lat: number; lng: number }): Promise<Camera> => {
+export const createCamera = async (payload: {
+  name: string
+  lat: number
+  lng: number
+}): Promise<Camera> => {
   const res = await http.post("/cameras", payload)
   return res.data
 }

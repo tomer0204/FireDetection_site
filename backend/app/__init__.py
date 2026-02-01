@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, request
 from flask_cors import CORS
 from app.config import DevelopmentConfig, ProductionConfig
 from app.extensions import db, migrate, jwt, limiter
@@ -14,7 +14,25 @@ def create_app():
     else:
         app.config.from_object(DevelopmentConfig)
 
-    CORS(app, origins=app.config["CORS_ORIGINS"], supports_credentials=True)
+
+    CORS(
+        app,
+        origins=app.config["CORS_ORIGINS"],
+        supports_credentials=True,
+        allow_headers=[
+            "Content-Type",
+            "Authorization",
+            "X-CSRF-TOKEN"
+        ],
+        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    )
+
+    @app.before_request
+    def handle_preflight():
+        if request.method == "OPTIONS":
+            response = app.make_response("")
+            response.status_code = 200
+            return response
 
     db.init_app(app)
     migrate.init_app(app, db)
@@ -36,6 +54,6 @@ def create_app():
     app.register_blueprint(health_bp)
     app.register_blueprint(favicon_bp)
 
-    from . import model
+    from app import model
 
     return app

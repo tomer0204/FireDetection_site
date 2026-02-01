@@ -1,22 +1,17 @@
 import http from "./api"
 import { CameraStream } from "../types/cameraStream"
 
-export const getCameraStream = async (
-  cameraId: number
-): Promise<{ is_active: boolean; stream?: CameraStream }> => {
-  const res = await http.get(`/cameras/${cameraId}/stream`)
+export const getCameraStreams = async (cameraId: number): Promise<CameraStream[]> => {
+  const res = await http.get(`/cameras/${cameraId}/streams`)
   return res.data
 }
 
-export const startCameraStream = async (
-  cameraId: number,
-  payload: { source_ref: string; fps?: number }
-): Promise<{ stream: CameraStream }> => {
-  const res = await http.post(`/cameras/${cameraId}/start`, payload)
+export const createStream = async (payload: { camera_id: number; fps: number }): Promise<CameraStream> => {
+  const res = await http.post("/streams", payload)
   return res.data
 }
 
-export const stopCameraStream = async (cameraId: number) => {
-  const res = await http.post(`/cameras/${cameraId}/stop`)
+export const stopStream = async (streamId: number) => {
+  const res = await http.post(`/streams/${streamId}/stop`)
   return res.data
 }

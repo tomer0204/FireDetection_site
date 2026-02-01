@@ -1,57 +1,59 @@
 from datetime import datetime
 import time
-import uuid
+import os
 import requests
 import boto3
 from app.extensions import db
+from app.model.camera import Camera
 from app.model.camera_stream import CameraStream
 
-INFERENCE_URL = "http://localhost:8081"
-BUCKET = "fire-frames"
+ORCHESTRATOR_URL = os.getenv("INFERENCE_URL", "http://orchestrator:5001").rstrip("/")
+MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "http://minio:9000")
+MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY")
+MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY")
+BUCKET = os.getenv("MINIO_BUCKET", "fire-frames")
 
 s3 = boto3.client(
     "s3",
-    endpoint_url="http://localhost:9000",
-    aws_access_key_id="minioadmin",
-    aws_secret_access_key="minioadmin",
+    endpoint_url=MINIO_ENDPOINT,
+    aws_access_key_id=MINIO_ACCESS_KEY,
+    aws_secret_access_key=MINIO_SECRET_KEY,
     region_name="us-east-1"
 )
 
-def get_active_stream(camera_id: int):
+# ---------- Queries ----------
+
+def get_stream(stream_id: int):
+    return CameraStream.query.get(stream_id)
+
+def get_active_streams_for_camera(camera_id: int):
     return (
         CameraStream.query
         .filter_by(camera_id=camera_id, is_active=True)
         .order_by(CameraStream.started_at.desc())
-        .first()
+        .all()
     )
 
-def start_camera_stream(camera_id: int, source_ref: str, fps: int):
-    local_run_id = uuid.uuid4().hex
+
+def create_stream(camera_id: int, fps: int):
+    camera = Camera.query.get_or_404(camera_id)
 
     res = requests.post(
-        f"{INFERENCE_URL}/streams/start",
-        json={
-            "camera_id": camera_id,
-            "source_ref": source_ref,
-            "fps": fps
-        },
+        f"{ORCHESTRATOR_URL}/streams/start",
+        json={"camera_id": camera.camera_id, "fps": fps},
         timeout=10
     )
     res.raise_for_status()
-    data = res.json() if res.content else {}
-
-    run_id = data.get("run_id", local_run_id)
-    s3_prefix = data.get("s3_prefix", f"{camera_id}/{run_id}/")
+    data = res.json()
 
     stream = CameraStream(
         camera_id=camera_id,
-        run_id=run_id,
-        source_type="MINIO",
-        source_ref=source_ref,
+        run_id=data["run_id"],
+        source_type="VIDEO",
+        source_ref=f"cam_{camera_id}",
         fps=fps,
-        s3_prefix=s3_prefix,
+        s3_prefix=data["s3_prefix"],
         started_at=datetime.utcnow(),
-        ended_at=None,
         is_active=True
     )
 
@@ -59,16 +61,16 @@ def start_camera_stream(camera_id: int, source_ref: str, fps: int):
     db.session.commit()
     return stream
 
-def stop_camera_stream(camera_id: int):
-    stream = get_active_stream(camera_id)
-    if not stream:
+def stop_stream(stream_id: int):
+    stream = get_stream(stream_id)
+    if not stream or not stream.is_active:
         return None
 
     try:
         requests.post(
-            f"{INFERENCE_URL}/streams/stop",
-            json={"camera_id": camera_id, "run_id": stream.run_id},
-            timeout=10
+            f"{ORCHESTRATOR_URL}/streams/stop",
+            json={"run_id": stream.run_id},
+            timeout=5
         )
     except Exception:
         pass
@@ -78,22 +80,23 @@ def stop_camera_stream(camera_id: int):
     db.session.commit()
     return stream
 
-def get_latest_frame_bytes(camera_id: int):
-    stream = get_active_stream(camera_id)
-    if not stream:
-        return None
 
+def get_latest_frame_bytes(stream: CameraStream):
     objs = s3.list_objects_v2(Bucket=BUCKET, Prefix=stream.s3_prefix)
     if "Contents" not in objs or not objs["Contents"]:
         return None
 
-    latest = max(objs["Contents"], key=lambda x: x["Key"])
+    latest = max(objs["Contents"], key=lambda x: x["LastModified"])
     obj = s3.get_object(Bucket=BUCKET, Key=latest["Key"])
     return obj["Body"].read()
 
-def live_frame_generator(camera_id: int, fps: int = 17):
+def live_frame_generator(stream_id: int, fps: int = 10):
     while True:
-        frame = get_latest_frame_bytes(camera_id)
+        stream = get_stream(stream_id)
+        if not stream or not stream.is_active:
+            break
+
+        frame = get_latest_frame_bytes(stream)
         if frame:
             yield (
                 b"--frame\r\n"
@@ -101,4 +104,5 @@ def live_frame_generator(camera_id: int, fps: int = 17):
                 frame +
                 b"\r\n"
             )
-        time.sleep(1.0 / max(1, fps))
+
+        time.sleep(1 / max(1, fps))

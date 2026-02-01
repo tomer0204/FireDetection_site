@@ -1,55 +1,99 @@
-import { useEffect, useState } from "react"
 import { useParams } from "react-router-dom"
-import { getCameraStream, startCameraStream, stopCameraStream } from "../api/cameraStreamApi"
+import { useEffect, useState } from "react"
+import {
+  createStream,
+  getCameraStreams,
+  stopStream
+} from "../api/cameraStreamApi"
 import { CameraStream } from "../types/cameraStream"
+import cameraImg from "../assets/camera.png"
 
 export default function CameraPage() {
   const { id } = useParams()
   const cameraId = Number(id)
 
-  const [stream, setStream] = useState<CameraStream | null>(null)
-  const [frameUrl, setFrameUrl] = useState("")
+  const [activeStream, setActiveStream] = useState<CameraStream | null>(null)
+  const [liveUrl, setLiveUrl] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    getCameraStream(cameraId).then(res => {
-      if (res.is_active && res.stream) setStream(res.stream)
-      else setStream(null)
+    if (!cameraId) return
+
+    getCameraStreams(cameraId).then(streams => {
+      const active = streams.find(s => s.is_active)
+      if (active) {
+        setActiveStream(active)
+        setLiveUrl(`/api/streams/${active.stream_id}/live`)
+      }
     })
   }, [cameraId])
 
-  const startLive = async () => {
-    const res = await startCameraStream(cameraId, {
-      source_ref: "fire_real.mp4",
-      fps: 17
-    })
-    setStream(res.stream)
+  const onStart = async () => {
+    setLoading(true)
+    try {
+      const stream = await createStream({
+        camera_id: cameraId,
+        fps: 10
+      })
+
+      setActiveStream(stream)
+      setLiveUrl(`/api/streams/${stream.stream_id}/live`)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const stopLive = async () => {
-    await stopCameraStream(cameraId)
-    setStream(null)
+  const onStop = async () => {
+    if (!activeStream) return
+
+    setLoading(true)
+    try {
+      await stopStream(activeStream.stream_id)
+      setActiveStream(null)
+      setLiveUrl(null)
+    } finally {
+      setLoading(false)
+    }
   }
-
-  useEffect(() => {
-    if (!stream || !stream.is_active) return
-
-    const interval = setInterval(() => {
-      setFrameUrl(`/api/cameras/${cameraId}/frame?ts=${Date.now()}`)
-    }, 200)
-
-    return () => clearInterval(interval)
-  }, [stream, cameraId])
 
   return (
     <div style={{ padding: 16 }}>
       <h2>Camera {cameraId}</h2>
 
-      {!stream && <button onClick={startLive}>Start Live</button>}
-      {stream && <button onClick={stopLive}>Stop Live</button>}
-
-      <div style={{ marginTop: 16 }}>
-        {stream ? <img src={frameUrl} width="100%" /> : <div>No active stream</div>}
+      {/* 📷 Camera icon */}
+      <div style={{ marginBottom: 12 }}>
+        <img
+          src={cameraImg}
+          alt="Camera"
+          style={{
+            width: 80,
+            opacity: activeStream ? 1 : 0.5
+          }}
+        />
       </div>
+
+      <div style={{ marginBottom: 12 }}>
+        {!activeStream ? (
+          <button onClick={onStart} disabled={loading}>
+            ▶ Start Stream
+          </button>
+        ) : (
+          <button onClick={onStop} disabled={loading}>
+            ⏹ Stop Stream
+          </button>
+        )}
+      </div>
+
+      {liveUrl && (
+        <img
+          src={liveUrl}
+          style={{
+            width: "100%",
+            maxWidth: 900,
+            border: "1px solid #333"
+          }}
+        />
+      )}
     </div>
   )
 }

@@ -1,8 +1,7 @@
-import { useEffect, useState } from "react"
-import IsraelMap from "../components/Map/IsraelMap"
-import { Camera } from "../types/camera"
-import { getCameras } from "../api/cameraApi"
-import "../styles/layout.css"
+import {useEffect, useState} from "react";
+import {getCameras} from "../api/cameraApi";
+import {Camera} from "../types/camera";
+import IsraelMap from "../components/Map/IsraelMap";
 
 export default function MapPage() {
   const [cameras, setCameras] = useState<Camera[]>([])
