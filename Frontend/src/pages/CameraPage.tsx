@@ -1,10 +1,7 @@
 import { useParams } from "react-router-dom"
-import { useEffect, useState } from "react"
-import {
-  createStream,
-  getCameraStreams,
-  stopStream
-} from "../api/cameraStreamApi"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { io, Socket } from "socket.io-client"
+import { createStream, getCameraStreams, stopStream } from "../api/cameraStreamApi"
 import { CameraStream } from "../types/cameraStream"
 import cameraImg from "../assets/camera.png"
 
@@ -13,8 +10,61 @@ export default function CameraPage() {
   const cameraId = Number(id)
 
   const [activeStream, setActiveStream] = useState<CameraStream | null>(null)
-  const [liveUrl, setLiveUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [frameUrl, setFrameUrl] = useState<string | null>(null)
+
+  const socketRef = useRef<Socket | null>(null)
+  const lastUrlRef = useRef<string | null>(null)
+
+  const backendBase = useMemo(() => import.meta.env.VITE_API_BASE_URL, [])
+
+  const cleanupFrameUrl = () => {
+    if (lastUrlRef.current) {
+      URL.revokeObjectURL(lastUrlRef.current)
+      lastUrlRef.current = null
+    }
+    setFrameUrl(null)
+  }
+
+  const disconnectSocket = () => {
+    const s = socketRef.current
+    socketRef.current = null
+    if (s) s.disconnect()
+    cleanupFrameUrl()
+  }
+
+  const connectAndJoin = (streamId: number) => {
+    disconnectSocket()
+
+    const s = io(backendBase, {
+      withCredentials: true,
+      transports: ["websocket"]
+    })
+
+    socketRef.current = s
+
+    s.on("connect", () => {
+      s.emit("join_stream", { stream_id: streamId })
+    })
+
+    s.on("frame", (data: ArrayBuffer) => {
+      const blob = new Blob([data], { type: "image/jpeg" })
+      const url = URL.createObjectURL(blob)
+
+      if (lastUrlRef.current) URL.revokeObjectURL(lastUrlRef.current)
+      lastUrlRef.current = url
+      setFrameUrl(url)
+    })
+
+    s.on("stream_error", () => {
+      disconnectSocket()
+      setActiveStream(null)
+    })
+
+    s.on("disconnect", () => {
+      cleanupFrameUrl()
+    })
+  }
 
   useEffect(() => {
     if (!cameraId) return
@@ -23,28 +73,27 @@ export default function CameraPage() {
       const active = streams.find(s => s.is_active)
       if (active) {
         setActiveStream(active)
-        setLiveUrl(`/api/streams/${cameraId}/live`)
+        connectAndJoin(active.stream_id)
       }
     })
+
+    return () => {
+      disconnectSocket()
+    }
   }, [cameraId])
 
   const onStart = async () => {
-  if (loading || activeStream) return
+    if (loading || activeStream) return
 
-  setLoading(true)
-  try {
-    const stream = await createStream({
-      camera_id: cameraId,
-      fps: 10
-    })
-
-    setActiveStream(stream)
-    setLiveUrl(`/api/streams/${stream.stream_id}/live`)
-  } finally {
-    setLoading(false)
+    setLoading(true)
+    try {
+      const stream = await createStream({ camera_id: cameraId, fps: 10 })
+      setActiveStream(stream)
+      connectAndJoin(stream.stream_id)
+    } finally {
+      setLoading(false)
+    }
   }
-}
-
 
   const onStop = async () => {
     if (!activeStream) return
@@ -53,7 +102,7 @@ export default function CameraPage() {
     try {
       await stopStream(activeStream.stream_id)
       setActiveStream(null)
-      setLiveUrl(null)
+      disconnectSocket()
     } finally {
       setLoading(false)
     }
@@ -62,7 +111,6 @@ export default function CameraPage() {
   return (
     <div style={{ padding: 16 }}>
       <h2>Camera {cameraId}</h2>
-
 
       <div style={{ marginBottom: 12 }}>
         <img
@@ -87,16 +135,13 @@ export default function CameraPage() {
         )}
       </div>
 
-      {liveUrl && (
-        <img
-          src={liveUrl}
-          style={{
-            width: "100%",
-            maxWidth: 900,
-            border: "1px solid #333"
-          }}
-        />
-      )}
+      <div style={{ width: "100%", maxWidth: 900, border: "1px solid #333" }}>
+        {frameUrl ? (
+          <img src={frameUrl} style={{ width: "100%", display: "block" }} />
+        ) : (
+          <div style={{ padding: 16 }}>No live frame</div>
+        )}
+      </div>
     </div>
   )
 }

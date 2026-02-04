@@ -1,7 +1,7 @@
 from flask import Flask, request
 from flask_cors import CORS
 from app.config import DevelopmentConfig, ProductionConfig
-from app.extensions import db, migrate, jwt, limiter
+from app.extensions import db, migrate, jwt, limiter, socketio
 
 def create_app():
     app = Flask(__name__)
@@ -14,31 +14,24 @@ def create_app():
     else:
         app.config.from_object(DevelopmentConfig)
 
-
-    CORS(
-        app,
-        origins=app.config["CORS_ORIGINS"],
-        supports_credentials=True,
-        allow_headers=[
-            "Content-Type",
-            "Authorization",
-            "X-CSRF-TOKEN"
-        ],
-        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]
-    )
-
-    @app.before_request
-    def handle_preflight():
-        if request.method == "OPTIONS":
-            response = app.make_response("")
-            response.status_code = 200
-            return response
-
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
     limiter.init_app(app)
 
+    socketio.init_app(
+        app,
+        cors_allowed_origins=app.config["CORS_ORIGINS"],
+        async_mode="eventlet",
+        ping_interval=20,
+        ping_timeout=60
+    )
+
+    CORS(
+        app,
+        origins=app.config["CORS_ORIGINS"],
+        supports_credentials=True,
+    )
     from app.middleware.error_middleware import register_error_handlers
     register_error_handlers(app)
 
@@ -53,6 +46,9 @@ def create_app():
     app.register_blueprint(stream_bp, url_prefix="/api")
     app.register_blueprint(health_bp)
     app.register_blueprint(favicon_bp)
+
+    from app.utils.stream_socket import register_stream_ws
+    register_stream_ws(app)
 
     from app import model
 

@@ -1,14 +1,10 @@
-from flask import request, jsonify, Response
-from flask_jwt_extended import jwt_required, verify_jwt_in_request
-from flask_jwt_extended.exceptions import NoAuthorizationError
-
-from app.model import CameraStream
+from flask import request, jsonify
+from flask_jwt_extended import jwt_required
 from app.service.camera_stream_service import (
     create_stream,
     stop_stream,
     get_stream,
-    get_active_streams_for_camera,
-    live_frame_generator
+    get_active_streams_for_camera
 )
 
 def stream_to_dict(s):
@@ -24,7 +20,6 @@ def stream_to_dict(s):
         "ended_at": s.ended_at.isoformat() if s.ended_at else None,
         "is_active": s.is_active
     }
-
 
 @jwt_required()
 def create_stream_controller():
@@ -48,17 +43,6 @@ def stop_stream_controller(stream_id: int):
     if not stream:
         return jsonify({"error": "NO_ACTIVE_STREAM"}), 400
     return jsonify({"stopped": True}), 200
-
-
-def live_stream_controller(stream_id: int):
-    stream = CameraStream.query.get_or_404(stream_id)
-
-    return Response(
-        live_frame_generator(stream),
-        mimetype="multipart/x-mixed-replace; boundary=frame"
-    )
-
-
 
 @jwt_required()
 def list_camera_streams_controller(camera_id: int):
