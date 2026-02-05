@@ -1,27 +1,51 @@
-.app-layout {
+.layout-root {
+  height: 100vh;
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  width: 100vw;
 }
 
-.app-header {
+.layout-header {
   height: 56px;
   background-color: #1f2a36;
-  color: #ffffff;
+  color: white;
   display: flex;
   align-items: center;
-  padding: 0 24px;
+  justify-content: space-between;
+  padding: 0 20px;
+}
+
+.layout-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.layout-title {
   font-size: 18px;
   font-weight: 500;
 }
 
-.app-content {
-  flex: 1;
-  position: relative;
-  overflow: hidden;
+.layout-back {
+  background: none;
+  border: none;
+  color: #4fc3f7;
+  font-size: 15px;
+  cursor: pointer;
 }
-.map-page {
-  height: calc(100vh - 60px);
-  width: 100%;
+
+.layout-logout {
+  background-color: #c62828;
+  border: none;
+  color: white;
+  padding: 6px 14px;
+  border-radius: 6px;
+}
+
+.layout-main {
+  flex: 1;
+  background-color: black;
+}
+
+.camera-layout .layout-header {
+  background-color: rgba(0, 0, 0, 0.85);
 }

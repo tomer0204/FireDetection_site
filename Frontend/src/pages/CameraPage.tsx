@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { io, Socket } from "socket.io-client"
 import { createStream, getCameraStreams, stopStream } from "../api/cameraStreamApi"
 import { CameraStream } from "../types/cameraStream"
-import cameraImg from "../assets/camera.png"
+import "../styles/camera.css"
 
 export default function CameraPage() {
   const { id } = useParams()
@@ -16,7 +16,10 @@ export default function CameraPage() {
   const socketRef = useRef<Socket | null>(null)
   const lastUrlRef = useRef<string | null>(null)
 
-  const backendBase = useMemo(() => import.meta.env.VITE_API_BASE_URL, [])
+  const backendBase = useMemo(
+    () => import.meta.env.VITE_API_BASE_URL,
+    []
+  )
 
   const cleanupFrameUrl = () => {
     if (lastUrlRef.current) {
@@ -50,7 +53,6 @@ export default function CameraPage() {
     s.on("frame", (data: ArrayBuffer) => {
       const blob = new Blob([data], { type: "image/jpeg" })
       const url = URL.createObjectURL(blob)
-
       if (lastUrlRef.current) URL.revokeObjectURL(lastUrlRef.current)
       lastUrlRef.current = url
       setFrameUrl(url)
@@ -61,9 +63,7 @@ export default function CameraPage() {
       setActiveStream(null)
     })
 
-    s.on("disconnect", () => {
-      cleanupFrameUrl()
-    })
+    s.on("disconnect", cleanupFrameUrl)
   }
 
   useEffect(() => {
@@ -77,14 +77,11 @@ export default function CameraPage() {
       }
     })
 
-    return () => {
-      disconnectSocket()
-    }
+    return () => disconnectSocket()
   }, [cameraId])
 
   const onStart = async () => {
     if (loading || activeStream) return
-
     setLoading(true)
     try {
       const stream = await createStream({ camera_id: cameraId, fps: 10 })
@@ -97,7 +94,6 @@ export default function CameraPage() {
 
   const onStop = async () => {
     if (!activeStream) return
-
     setLoading(true)
     try {
       await stopStream(activeStream.stream_id)
@@ -109,37 +105,34 @@ export default function CameraPage() {
   }
 
   return (
-    <div style={{ padding: 16 }}>
-      <h2>Camera {cameraId}</h2>
-
-      <div style={{ marginBottom: 12 }}>
-        <img
-          src={cameraImg}
-          alt="Camera"
-          style={{
-            width: 80,
-            opacity: activeStream ? 1 : 0.5
-          }}
-        />
-      </div>
-
-      <div style={{ marginBottom: 12 }}>
-        {!activeStream ? (
-          <button onClick={onStart} disabled={loading}>
-            ▶ Start Stream
-          </button>
+    <div className="camera-page">
+      <div className="camera-video">
+        {frameUrl ? (
+          <img src={frameUrl} />
         ) : (
-          <button onClick={onStop} disabled={loading}>
-            ⏹ Stop Stream
-          </button>
+          <div className="camera-placeholder">
+            No live stream
+          </div>
         )}
       </div>
 
-      <div style={{ width: "100%", maxWidth: 900, border: "1px solid #333" }}>
-        {frameUrl ? (
-          <img src={frameUrl} style={{ width: "100%", display: "block" }} />
+      <div className="camera-controls">
+        {!activeStream ? (
+          <button
+            className="camera-btn start"
+            onClick={onStart}
+            disabled={loading}
+          >
+            ▶ Start Stream
+          </button>
         ) : (
-          <div style={{ padding: 16 }}>No live frame</div>
+          <button
+            className="camera-btn stop"
+            onClick={onStop}
+            disabled={loading}
+          >
+            ⏹ Stop Stream
+          </button>
         )}
       </div>
     </div>

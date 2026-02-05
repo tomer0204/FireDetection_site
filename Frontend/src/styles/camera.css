@@ -1,0 +1,62 @@
+.camera-page {
+  height: 100%;
+  background-color: black;
+  position: relative;
+}
+
+.camera-video {
+  height: calc(100% - 88px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.camera-video img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.camera-placeholder {
+  color: #888;
+  font-size: 18px;
+}
+
+.camera-controls {
+  height: 88px;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.95),
+    rgba(0, 0, 0, 0.7)
+  );
+
+  border-top: 1px solid #222;
+}
+
+.camera-btn {
+  font-size: 18px;
+  padding: 14px 36px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+}
+
+.camera-btn.start {
+  background-color: #2e7d32;
+  color: white;
+}
+
+.camera-btn.stop {
+  background-color: #c62828;
+  color: white;
+}
