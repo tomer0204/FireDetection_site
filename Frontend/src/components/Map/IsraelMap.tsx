@@ -1,7 +1,7 @@
 import { MapContainer, TileLayer, GeoJSON } from "react-leaflet"
-import israelGeoJson from "../../assets/israel.geo.json"
 import { Camera } from "../../types/camera"
 import CameraMarker from "../Camera/CameraMarker"
+import { buildCoverageGeoJSON } from "../../utils/buildCoverageGeoJSON"
 
 const WORLD_POLYGON: GeoJSON.Polygon = {
   type: "Polygon",
@@ -16,20 +16,24 @@ const WORLD_POLYGON: GeoJSON.Polygon = {
   ]
 }
 
-function buildMaskedGeoJSON(israel: any) {
-  const holes = israel.features.map((f: any) => f.geometry.coordinates[0])
+function buildMaskedGeoJSON(coverage: any) {
+  const holes = coverage.geometry.coordinates.map((poly: any) => poly[0])
 
   return {
     type: "Feature",
     geometry: {
       type: "Polygon",
-      coordinates: [WORLD_POLYGON.coordinates[0], ...holes]
+      coordinates: [
+        WORLD_POLYGON.coordinates[0],
+        ...holes
+      ]
     }
   }
 }
 
 export default function IsraelMap({ cameras }: { cameras: Camera[] }) {
-  const masked = buildMaskedGeoJSON(israelGeoJson)
+  const coverage = buildCoverageGeoJSON()
+  const masked = buildMaskedGeoJSON(coverage)
 
   return (
     <MapContainer
@@ -41,15 +45,11 @@ export default function IsraelMap({ cameras }: { cameras: Camera[] }) {
       zoomDelta={0.5}
       wheelPxPerZoomLevel={120}
       style={{ height: "100vh", width: "100%" }}
-      maxBounds={[
-        [29.3, 34.0],
-        [33.5, 36.0]
-      ]}
+      maxBounds={[[29.3, 34.0], [33.5, 36.0]]}
       maxBoundsViscosity={1.0}
-      zoomAnimation={true}
-      zoomAnimationThreshold={4}
-      fadeAnimation={true}
-      inertia={true}
+      zoomAnimation
+      fadeAnimation
+      inertia
       inertiaDeceleration={3000}
     >
       <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
@@ -62,7 +62,7 @@ export default function IsraelMap({ cameras }: { cameras: Camera[] }) {
 
       <GeoJSON
         // @ts-ignore
-        data={israelGeoJson}
+        data={coverage}
         style={{ fillOpacity: 0, color: "#ffffff", weight: 1.5, dashArray: "4 4" }}
       />
 
