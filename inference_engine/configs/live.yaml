@@ -1,0 +1,29 @@
+jpg_quality: 85
+
+sampling:
+  check_color_every_n: 3
+  yolo_cooldown_frames: 12
+
+color_gate:
+  thresholds:
+    y_min: 120
+    cr_min: 150
+    cb_max: 130
+    cr_gt_cb_margin: 10
+  morph:
+    open: 3
+    close: 7
+  decision:
+    min_ratio: 0.001
+  components:
+    min_area: 250
+    max_rois: 3
+    pad: 10
+
+temporal_filter:
+  window_size: 3
+  min_score: 0.20
+
+feature_extraction:
+  optical_flow: true
+  color_space: ycrcb

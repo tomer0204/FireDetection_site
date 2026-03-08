@@ -69,7 +69,7 @@ def health():
 def http_start():
     data = request.get_json() or {}
     camera_id = int(data["camera_id"])
-    fps = int(data.get("fps", 10))
+    fps = int(data.get("fps", 17))
     return jsonify(manager.start(camera_id, fps)), 200
 
 @app.post("/streams/stop")

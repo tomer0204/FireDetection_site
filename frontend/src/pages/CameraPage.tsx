@@ -210,7 +210,7 @@ export default function CameraPage() {
     if (loading || activeStream) return
     setLoading(true)
     try {
-      const stream = await createStream({ camera_id: cameraId, fps: 10 })
+      const stream = await createStream({ camera_id: cameraId, fps: 17 })
       setActiveStream(stream)
       connectAndJoin(stream.stream_id)
     } finally {

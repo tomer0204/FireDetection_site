@@ -10,6 +10,8 @@ import logging
 from ingest.stream_reader import StreamReader
 from pipeline.preprocess.color_gate.ycrcb_gate import ycrcb_fire_gate
 from pipeline.preprocess.color_gate.sampling_policy import should_check_color, should_run_yolo
+from pipeline.process.temporal.temporal_filter import TemporalFilter
+from pipeline.process.mrf.feature_extraction import extract_roi_features
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 logger = logging.getLogger("STREAM")
@@ -202,6 +204,16 @@ class StreamManager:
         cooldown_frames = int(sampling_cfg.get("yolo_cooldown_frames", 12))
         cooldown_state = {"cooldown_left": 0}
 
+        # Stage 3: Temporal filter
+        tf_cfg = self.live_cfg.get("temporal_filter", {})
+        temporal_filter = TemporalFilter(
+            window_size=int(tf_cfg.get("window_size", 3)),
+            min_score=float(tf_cfg.get("min_score", 0.20)),
+        )
+
+        # Stage 4: Feature extraction state (previous frame)
+        prev_frame = None
+
         last_status_emit = 0.0
 
         logger.info(
@@ -253,20 +265,44 @@ class StreamManager:
                                 meta = dets.get("meta")
                                 det_list = self._rescale_detections(det_list, meta)
 
-                                payload = {
-                                    "run_id": run_id,
-                                    "frame_index": frame_idx,
-                                    "detections": det_list,
-                                }
+                                # Stage 3: Temporal filtering
+                                temporal_filter.push(frame_idx, det_list)
+                                confirmed, confirmed_dets = temporal_filter.evaluate()
 
                                 logger.info(
-                                    f"[EMIT] infer_result frame={frame_idx} "
-                                    f"detections={len(det_list)}"
+                                    f"[TEMPORAL] frame={frame_idx} "
+                                    f"confirmed={confirmed} dets={len(confirmed_dets)}"
                                 )
 
-                                self.socketio.emit(
-                                    "infer_result", payload, room=f"run:{run_id}"
-                                )
+                                if confirmed and confirmed_dets:
+                                    # Stage 4: Feature extraction
+                                    t0_feat = time.time()
+                                    enriched = extract_roi_features(
+                                        frame, confirmed_dets, prev_frame
+                                    )
+                                    feat_ms = (time.time() - t0_feat) * 1000.0
+                                    logger.info(
+                                        f"[FEATURES] frame={frame_idx} "
+                                        f"rois={len(enriched)} latency_ms={feat_ms:.1f}"
+                                    )
+
+                                    payload = {
+                                        "run_id": run_id,
+                                        "frame_index": frame_idx,
+                                        "detections": enriched,
+                                    }
+
+                                    logger.info(
+                                        f"[EMIT] infer_result frame={frame_idx} "
+                                        f"detections={len(enriched)}"
+                                    )
+
+                                    self.socketio.emit(
+                                        "infer_result", payload, room=f"run:{run_id}"
+                                    )
+
+                # Track previous frame for feature extraction
+                prev_frame = frame
 
                 # Archive sampled frames (non-fatal on failure)
                 if jpeg and self.enable_archive and self.archive_writer:
