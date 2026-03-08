@@ -1,0 +1,19 @@
+[package]
+name = "cnn_engine"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "sync"] }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
+axum = { version = "0.7", features = ["json", "tokio", "http1"] }
+bytes = "1.6"
+async-trait = "0.1"
+native-tls = "=0.2.16"
+
+
+ort = { version = "2.0.0-rc.11", default-features = false, features = ["load-dynamic", "cuda"] }

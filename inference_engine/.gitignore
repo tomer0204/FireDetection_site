@@ -1,0 +1,43 @@
+.venv
+docs
+configs
+artifacts
+__pycache__
+*.pyc
+.vscode
+*.log
+postgres_data
+.env
+minio_data
+rust/cnn_engine/target
+rust/cnn_engine/debug/
+*.exe
+*.dll
+*.so
+*.dylib
+# Docker volumes / data
+postgres_data/
+minio_data/
+*.db
+*.sqlite3
+# Docker
+*.log
+docker-compose.override.yml
+.env
+.env.*
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.venv/
+venv/
+.envrc
+
+
+.idea/
+
+onnxruntime-linux-x64-gpu-1.17.3.tgz
+
+onnxruntime-linux-x64-gpu-1.17.3.tgz

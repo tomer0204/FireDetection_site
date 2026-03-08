@@ -1,0 +1,10 @@
+boto3
+minio
+flask
+flask-socketio
+eventlet
+numpy
+opencv-python-headless
+PyYAML
+requests
+tqdm

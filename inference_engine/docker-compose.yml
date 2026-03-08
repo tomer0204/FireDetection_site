@@ -1,0 +1,89 @@
+services:
+
+  postgres:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: fire_detection_site
+      POSTGRES_USER: fire_user
+      POSTGRES_PASSWORD: Tomer237878
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+  rust:
+    build:
+      context: ./rust/cnn_engine
+    restart: unless-stopped
+    ports:
+      - "8088:8088"
+    volumes:
+      - ./artifacts/final/yolo:/models:ro
+    environment:
+      ONNX_PATH: /models/best.onnx
+    gpus: all
+
+
+
+
+  orchestrator:
+    build:
+      context: .
+    restart: unless-stopped
+    depends_on:
+      - minio
+      - rust
+    ports:
+      - "5001:5001"
+    volumes:
+      - /home/linux/Desktop/fire_videos:/videos:ro
+      - ./configs:/app/configs:ro
+    environment:
+      CAMERAS_CONFIG: configs/cameras.yaml
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET: fire-frames
+      ENABLE_MINIO_ARCHIVE: "true"
+      RUST_INFER_URL: http://rust:8088
+
+  backend:
+    build:
+      context: ../backend
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - minio
+      - orchestrator
+    ports:
+      - "5000:5000"
+    environment:
+      APP_ENV: development
+      SECRET_KEY: thekeyissupersecretwoww
+      DATABASE_URL: postgresql://fire_user:Tomer237878@postgres:5432/fire_detection_site
+      JWT_SECRET_KEY: superjwtsecret
+      JWT_COOKIE_SECURE: "false"
+      JWT_COOKIE_SAMESITE: Lax
+      CORS_ORIGINS: http://localhost:5173,http://127.0.0.1:5173,http://localhost:5000,http://rust:8088
+      INFERENCE_URL: http://orchestrator:5001
+      INFERENCE_WS_URL: http://orchestrator:5001
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET: fire-frames
+
+volumes:
+  postgres_data:
+  minio_data:
