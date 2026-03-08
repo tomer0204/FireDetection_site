@@ -29,13 +29,15 @@ def create_stream(camera_id: int, fps: int):
     res.raise_for_status()
     data = res.json()
 
+    s3_prefix = data.get("s3_prefix") or ""
+
     stream = CameraStream(
         camera_id=int(camera_id),
         run_id=data["run_id"],
         source_type="VIDEO",
         source_ref=f"cam_{camera_id}",
         fps=int(fps),
-        s3_prefix=data.get("s3_prefix"),
+        s3_prefix=s3_prefix,
         started_at=datetime.utcnow(),
         is_active=True
     )

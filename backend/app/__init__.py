@@ -14,6 +14,13 @@ def create_app():
     else:
         app.config.from_object(DevelopmentConfig)
 
+    CORS(
+        app,
+        origins=app.config["CORS_ORIGINS"],
+        supports_credentials=True,
+        allow_headers=["Content-Type", "Authorization", "X-CSRF-TOKEN"],
+        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    )
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
@@ -22,16 +29,9 @@ def create_app():
     socketio.init_app(
         app,
         cors_allowed_origins=app.config["CORS_ORIGINS"],
-        async_mode="eventlet",
-        ping_interval=20,
-        ping_timeout=60
+        async_mode="eventlet"
     )
 
-    CORS(
-        app,
-        origins=app.config["CORS_ORIGINS"],
-        supports_credentials=True,
-    )
     from app.middleware.error_middleware import register_error_handlers
     register_error_handlers(app)
 
