@@ -27,3 +27,36 @@ temporal_filter:
 feature_extraction:
   optical_flow: true
   color_space: ycrcb
+
+mrf:
+  weights:
+    color: 0.4
+    flicker: 0.3
+    motion: 0.3
+  fire_thresholds:
+    cr_mean_min: 140
+    cb_mean_max: 140
+    y_mean_min: 100
+  sigmoid_scales:
+    cr: 20.0
+    cb: 20.0
+    y: 30.0
+  flicker_norm: 30.0
+  flow_mag_norm: 5.0
+  div_scale: 2.0
+  lambda_smooth: 0.3
+  spatial_sigma: 100.0
+  min_mrf_score: 0.15
+
+temporal_smoothing:
+  iou_threshold: 0.3
+  max_age: 5
+  persistence_bonus: 0.15
+  ema_alpha: 0.6
+  max_hits_saturate: 3
+
+final_rendering:
+  min_final_score: 0.10
+  bbox_margin: 5
+  nms_iou_threshold: 0.5
+  min_bbox_dim: 4

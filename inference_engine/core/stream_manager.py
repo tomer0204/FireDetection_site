@@ -12,6 +12,10 @@ from pipeline.preprocess.color_gate.ycrcb_gate import ycrcb_fire_gate
 from pipeline.preprocess.color_gate.sampling_policy import should_check_color, should_run_yolo
 from pipeline.process.temporal.temporal_filter import TemporalFilter
 from pipeline.process.mrf.feature_extraction import extract_roi_features
+from pipeline.process.mrf.mrf_inference import mrf_classify
+from pipeline.process.temporal.iou_tracker import IOUTracker
+from pipeline.postprocess.temporal_smoothing import temporal_smooth
+from pipeline.postprocess.decision_logic import final_decision
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 logger = logging.getLogger("STREAM")
@@ -214,6 +218,20 @@ class StreamManager:
         # Stage 4: Feature extraction state (previous frame)
         prev_frame = None
 
+        # Stage 5: MRF config
+        mrf_cfg = self.live_cfg.get("mrf", {})
+
+        # Stage 6: IOU tracker + temporal smoothing
+        smooth_cfg = self.live_cfg.get("temporal_smoothing", {})
+        iou_tracker = IOUTracker(
+            iou_threshold=float(smooth_cfg.get("iou_threshold", 0.3)),
+            max_age=int(smooth_cfg.get("max_age", 5)),
+            ema_alpha=float(smooth_cfg.get("ema_alpha", 0.6)),
+        )
+
+        # Stage 7: Final rendering config
+        final_cfg = self.live_cfg.get("final_rendering", {})
+
         last_status_emit = 0.0
 
         logger.info(
@@ -286,20 +304,46 @@ class StreamManager:
                                         f"rois={len(enriched)} latency_ms={feat_ms:.1f}"
                                     )
 
-                                    payload = {
-                                        "run_id": run_id,
-                                        "frame_index": frame_idx,
-                                        "detections": enriched,
-                                    }
-
+                                    # Stage 5: MRF classification
+                                    t0_mrf = time.time()
+                                    mrf_dets = mrf_classify(enriched, frame.shape, mrf_cfg)
+                                    mrf_ms = (time.time() - t0_mrf) * 1000.0
                                     logger.info(
-                                        f"[EMIT] infer_result frame={frame_idx} "
-                                        f"detections={len(enriched)}"
+                                        f"[MRF] frame={frame_idx} "
+                                        f"dets={len(mrf_dets)} latency_ms={mrf_ms:.1f}"
                                     )
 
-                                    self.socketio.emit(
-                                        "infer_result", payload, room=f"run:{run_id}"
+                                    # Stage 6: Temporal smoothing
+                                    t0_smooth = time.time()
+                                    smoothed = temporal_smooth(mrf_dets, iou_tracker, smooth_cfg)
+                                    smooth_ms = (time.time() - t0_smooth) * 1000.0
+                                    logger.info(
+                                        f"[SMOOTH] frame={frame_idx} "
+                                        f"dets={len(smoothed)} latency_ms={smooth_ms:.1f}"
                                     )
+
+                                    # Stage 7: Final rendering decision
+                                    t0_final = time.time()
+                                    final_dets = final_decision(smoothed, frame.shape, final_cfg)
+                                    final_ms = (time.time() - t0_final) * 1000.0
+                                    logger.info(
+                                        f"[FINAL] frame={frame_idx} "
+                                        f"dets={len(final_dets)} latency_ms={final_ms:.1f}"
+                                    )
+
+                                    if final_dets:
+                                        payload = {
+                                            "run_id": run_id,
+                                            "frame_index": frame_idx,
+                                            "detections": final_dets,
+                                        }
+                                        self.socketio.emit(
+                                            "infer_result", payload, room=f"run:{run_id}"
+                                        )
+                                        logger.info(
+                                            f"[EMIT] infer_result frame={frame_idx} "
+                                            f"detections={len(final_dets)}"
+                                        )
 
                 # Track previous frame for feature extraction
                 prev_frame = frame
